@@ -1,5 +1,5 @@
 cabal-version: 3.8
-name: tuilauncher
+name: tui-launcher
 version: 0.1.0.0
 build-type: Simple
 license: MIT
@@ -20,7 +20,7 @@ common warnings
     RecordWildCards
     TypeApplications
 
-executable tuilauncher
+executable tui-launcher
   import: warnings
   ghc-options: -threaded
   main-is: Main.hs
@@ -29,11 +29,11 @@ executable tuilauncher
     src
 
   other-modules:
-    TUILauncher.App
-    TUILauncher.Config
-    TUILauncher.Themes
-    TUILauncher.Types
-    TUILauncher.UI
+    TuiLauncher.App
+    TuiLauncher.Config
+    TuiLauncher.Themes
+    TuiLauncher.Types
+    TuiLauncher.UI
 
   build-depends:
     base,
@@ -49,7 +49,7 @@ executable tuilauncher
     vty,
     vty-crossplatform,
 
-test-suite tuilauncher-test
+test-suite tui-launcher-test
   import: warnings
   ghc-options: -threaded
   type: exitcode-stdio-1.0
@@ -59,14 +59,14 @@ test-suite tuilauncher-test
     src
 
   build-tool-depends:
-    tuilauncher:tuilauncher
+    tui-launcher:tui-launcher
 
   other-modules:
-    TUILauncher.App
-    TUILauncher.Config
-    TUILauncher.Themes
-    TUILauncher.Types
-    TUILauncher.UI
+    TuiLauncher.App
+    TuiLauncher.Config
+    TuiLauncher.Themes
+    TuiLauncher.Types
+    TuiLauncher.UI
 
   build-depends:
     base,

@@ -1,4 +1,4 @@
-module TUILauncher.Types (
+module TuiLauncher.Types (
     AppConfig (..),
     AppOptions (..),
     ConfigLocation (..),

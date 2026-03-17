@@ -1,4 +1,4 @@
-module TUILauncher.Themes (
+module TuiLauncher.Themes (
     accentAttr,
     attrMapForTheme,
     baseAttr,
@@ -10,7 +10,7 @@ module TUILauncher.Themes (
 import Brick (AttrMap, AttrName, attrMap, attrName)
 import Brick.Util (on)
 import Graphics.Vty qualified as V
-import TUILauncher.Types (ThemeName (..))
+import TuiLauncher.Types (ThemeName (..))
 
 baseAttr, borderAttr, mutedAttr, accentAttr, focusedAttr :: AttrName
 baseAttr = attrName "base"

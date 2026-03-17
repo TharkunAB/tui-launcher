@@ -10,11 +10,11 @@ import System.Directory (
  )
 import System.Exit (ExitCode (ExitFailure))
 import System.FilePath ((</>))
-import TUILauncher.App qualified as Launcher
-import TUILauncher.Config (defaultConfigText, loadResolvedConfig)
-import TUILauncher.Types (LaunchSpec (..), ResolvedConfig, ShellConfig (..))
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit
+import TuiLauncher.App qualified as Launcher
+import TuiLauncher.Config (defaultConfigText, loadResolvedConfig)
+import TuiLauncher.Types (LaunchSpec (..), ResolvedConfig, ShellConfig (..))
 import TuiSpec
 
 main :: IO ()
@@ -23,7 +23,7 @@ main = defaultMain tests
 tests :: TestTree
 tests =
     testGroup
-        "tuilauncher"
+        "tui-launcher"
         [ pureTests
         , tuiSpecSmoke
         ]
@@ -39,7 +39,7 @@ pureTests =
             assertBool "default config should set ~/Code for nvim" ("working-dir = \"~/Code\"" `T.isInfixOf` defaultConfigText)
         , testCase "empty shell program is rejected during config load" $ do
             tempDir <- getTemporaryDirectory
-            let configDir = tempDir </> "tuilauncher-empty-shell"
+            let configDir = tempDir </> "tui-launcher-empty-shell"
                 configPath = configDir </> "config.toml"
             createDirectoryIfMissing True configDir
             TIO.writeFile configPath $
@@ -55,7 +55,7 @@ pureTests =
                 Right _ -> assertFailure "expected config load to fail for empty shell-program"
         , testCase "empty working-dir is rejected during config load" $ do
             tempDir <- getTemporaryDirectory
-            let configDir = tempDir </> "tuilauncher-empty-working-dir"
+            let configDir = tempDir </> "tui-launcher-empty-working-dir"
                 configPath = configDir </> "config.toml"
             createDirectoryIfMissing True configDir
             TIO.writeFile configPath $
@@ -75,7 +75,7 @@ pureTests =
                     Launcher.launch
                         LaunchSpec
                             { launchCommand = "printf 'never runs\\n'"
-                            , launchWorkingDir = Just "/tmp/tuilauncher-does-not-exist"
+                            , launchWorkingDir = Just "/tmp/tui-launcher-does-not-exist"
                             , launchShell =
                                 ShellConfig
                                     { shellProgram = "/bin/sh"
@@ -94,22 +94,22 @@ tuiSpecSmoke =
     tuiTest
         defaultRunOptions
             { timeoutSeconds = 15
-            , artifactsDir = "artifacts/tuilauncher-smoke"
+            , artifactsDir = "artifacts/tui-launcher-smoke"
             }
         "launcher starts and executes selected entry"
         $ \tui -> do
             tempDir <- getTemporaryDirectory
-            let configDir = tempDir </> "tuilauncher-test"
+            let configDir = tempDir </> "tui-launcher-test"
                 configPath = configDir </> "config.toml"
             createDirectoryIfMissing True configDir
-            exePath <- findExecutable "tuilauncher"
+            exePath <- findExecutable "tui-launcher"
             case exePath of
                 Nothing ->
-                    fail "Could not find tuilauncher executable in PATH"
+                    fail "Could not find tui-launcher executable in PATH"
                 Just binaryPath -> do
                     TIO.writeFile configPath launcherConfig
                     launch tui (app binaryPath ["--config", configPath])
-                    waitForText tui (Exact "TUILauncher")
+                    waitForText tui (Exact "tui-launcher")
                     waitForText tui (Exact "Shell")
                     press tui Enter
                     waitForText tui (Exact "READY")

@@ -1,4 +1,4 @@
-module TUILauncher.App (
+module TuiLauncher.App (
     main,
     launch,
 ) where
@@ -10,9 +10,9 @@ import System.Directory (setCurrentDirectory)
 import System.Exit (exitFailure)
 import System.IO (hPutStrLn, stderr)
 import System.Posix.Process (executeFile)
-import TUILauncher.Config (loadResolvedConfig)
-import TUILauncher.Types
-import TUILauncher.UI (runUi)
+import TuiLauncher.Config (loadResolvedConfig)
+import TuiLauncher.Types
+import TuiLauncher.UI (runUi)
 
 main :: IO ()
 main = do

@@ -1,4 +1,4 @@
-module TUILauncher.UI (
+module TuiLauncher.UI (
     runUi,
 ) where
 
@@ -33,8 +33,8 @@ import Data.Text qualified as T
 import Graphics.Vty qualified as V
 import Graphics.Vty.Config (defaultConfig)
 import Graphics.Vty.CrossPlatform (mkVty)
-import TUILauncher.Themes
-import TUILauncher.Types
+import TuiLauncher.Themes
+import TuiLauncher.Types
 
 newtype Name = TileName Int deriving (Eq, Ord, Show)
 
@@ -91,7 +91,7 @@ header :: UiState -> Widget Name
 header _state =
     withAttr accentAttr $
         hCenter $
-            txt "TUILauncher"
+            txt "tui-launcher"
 
 footer :: UiState -> Widget Name
 footer state =

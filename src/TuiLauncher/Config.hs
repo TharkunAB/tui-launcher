@@ -1,4 +1,4 @@
-module TUILauncher.Config (
+module TuiLauncher.Config (
     defaultConfigText,
     loadResolvedConfig,
 ) where
@@ -17,8 +17,8 @@ import System.Directory (
  )
 import System.Environment (lookupEnv)
 import System.FilePath (isAbsolute, takeDirectory, (</>))
-import TUILauncher.Types
 import Toml qualified
+import TuiLauncher.Types
 
 defaultConfigText :: T.Text
 defaultConfigText =
@@ -78,7 +78,7 @@ loadResolvedConfig overridePath = do
 resolveConfigPath :: FilePath -> Maybe FilePath -> IO (ConfigLocation, FilePath, Bool)
 resolveConfigPath home = \case
     Nothing -> do
-        let defaultPath = home </> ".config" </> "tuilauncher" </> "config.toml"
+        let defaultPath = home </> ".config" </> "tui-launcher" </> "config.toml"
         exists <- doesFileExist defaultPath
         if exists
             then pure (DefaultConfig defaultPath, defaultPath, False)
