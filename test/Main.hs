@@ -49,8 +49,8 @@ pureTests =
         , testCase "default config keeps extra starter entries commented out" $ do
             let commentedEntries = ["# name = \"nvim\"", "# name = \"Tmux\"", "# name = \"Codex\"", "# name = \"Claude\""]
             mapM_ (\entryLine -> assertBool ("missing commented entry " <> T.unpack entryLine) (entryLine `T.isInfixOf` defaultConfigText)) commentedEntries
-        , testCase "default config uses multiline command strings" $
-            assertBool "default config should use TOML multiline strings for commands" ("command = '''" `T.isInfixOf` defaultConfigText)
+        , testCase "default config uses normal TOML command strings" $
+            assertBool "default config should not use TOML multiline strings for commands" (not ("command = '''" `T.isInfixOf` defaultConfigText))
         , testCase "default config enables only Shell" $ do
             tempDir <- getTemporaryDirectory
             let configDir = tempDir </> "tui-launcher-default-config"
@@ -153,7 +153,5 @@ tuiSpecSmoke =
             , ""
             , "[[entries]]"
             , "name = \"Shell\""
-            , "command = '''"
-            , "printf 'READY\\n'; exec sh"
-            , "'''"
+            , "command = \"printf 'READY\\\\n'; exec sh\""
             ]

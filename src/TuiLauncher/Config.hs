@@ -1,3 +1,5 @@
+{-# LANGUAGE MultilineStrings #-}
+
 -- | Config file loading, validation, and normalization.
 module TuiLauncher.Config (
     defaultConfigText,
@@ -28,53 +30,43 @@ starter entries in place as commented examples.
 -}
 defaultConfigText :: T.Text
 defaultConfigText =
-    T.unlines
-        [ "[theme]"
-        , "name = \"github-dark\""
-        , ""
-        , "[layout]"
-        , "tile-width = 20"
-        , "tile-height = 20"
-        , "tile-spacing = 1"
-        , ""
-        , "# [shell]"
-        , "# program = \"/bin/bash\""
-        , "# login = false"
-        , ""
-        , "[[entries]]"
-        , "name = \"Shell\""
-        , "command = '''"
-        , "exec \"${SHELL:-/bin/sh}\""
-        , "'''"
-        , ""
-        , "# [[entries]]"
-        , "# name = \"nvim\""
-        , "# command = '''"
-        , "# nvim"
-        , "# '''"
-        , "# working-dir = \"~/Code\""
-        , ""
-        , "# [[entries]]"
-        , "# name = \"Tmux\""
-        , "# command = '''"
-        , "# tmux"
-        , "# '''"
-        , "# working-dir = \"~/Code/project\""
-        , "# shell-program = \"/bin/zsh\""
-        , "# shell-login = true"
-        , ""
-        , "# [[entries]]"
-        , "# name = \"Codex\""
-        , "# command = '''"
-        , "# codex"
-        , "# '''"
-        , ""
-        , "# [[entries]]"
-        , "# name = \"Claude\""
-        , "# command = '''"
-        , "# claude"
-        , "# '''"
-        ]
+    """
+    [theme]
+    name = "github-dark"
+
+    [layout]
+    tile-width = 20
+    tile-height = 20
+    tile-spacing = 1
+
+    # [shell]
+    # program = "/bin/bash"
+    # login = false
+
+    [[entries]]
+    name = "Shell"
+    command = "exec \\\"${SHELL:-/bin/sh}\\\""
+
+    # [[entries]]
+    # name = "nvim"
+    # command = "nvim"
+    # working-dir = "~/Code"
+
+    # [[entries]]
+    # name = "Tmux"
+    # command = "tmux"
+    # working-dir = "~/Code/project"
+    # shell-program = "/bin/zsh"
+    # shell-login = true
+
+    # [[entries]]
+    # name = "Codex"
+    # command = "codex"
+
+    # [[entries]]
+    # name = "Claude"
+    # command = "claude"
+    """
 
 -- | Load, parse, validate, and normalize the active config file.
 loadResolvedConfig :: Maybe FilePath -> IO ResolvedConfig
