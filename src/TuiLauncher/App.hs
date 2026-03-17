@@ -1,3 +1,4 @@
+-- | Application startup and process handoff.
 module TuiLauncher.App (
     main,
     launch,
@@ -14,6 +15,9 @@ import TuiLauncher.Config (loadResolvedConfig)
 import TuiLauncher.Types
 import TuiLauncher.UI (runUi)
 
+{- | Parse CLI options, load configuration, run the UI, and launch the
+selected entry when one is chosen.
+-}
 main :: IO ()
 main = do
     options <- execParser parserInfo
@@ -21,12 +25,14 @@ main = do
     selected <- runUi (resolvedConfig resolved)
     maybe (pure ()) launch selected
 
+-- | Parser metadata for the command-line interface.
 parserInfo :: ParserInfo AppOptions
 parserInfo =
     info
         (optionsParser <**> helper)
         (fullDesc <> progDesc "Launch shell commands from a Brick-based menu")
 
+-- | Supported command-line options.
 optionsParser :: Parser AppOptions
 optionsParser =
     AppOptions
@@ -38,6 +44,11 @@ optionsParser =
                 )
             )
 
+{- | Replace the current process with the selected command.
+
+The launcher optionally changes directory first and then executes the
+resolved shell with either @-c@ or @-lc@ depending on the login setting.
+-}
 launch :: LaunchSpec -> IO ()
 launch LaunchSpec{..} = do
     let shellArgs = (if shellLogin launchShell then ["-lc"] else ["-c"]) <> [T.unpack launchCommand]

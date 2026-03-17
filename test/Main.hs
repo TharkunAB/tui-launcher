@@ -1,6 +1,8 @@
+-- | Test suite for @tui-launcher@.
 module Main (main) where
 
 import Control.Exception (SomeException, try)
+import Data.List.NonEmpty qualified as NonEmpty
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
 import System.Directory (
@@ -14,12 +16,20 @@ import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit
 import TuiLauncher.App qualified as Launcher
 import TuiLauncher.Config (defaultConfigText, loadResolvedConfig)
-import TuiLauncher.Types (LaunchSpec (..), ResolvedConfig, ShellConfig (..))
+import TuiLauncher.Types (
+    AppConfig (..),
+    LaunchSpec (..),
+    ResolvedConfig (..),
+    ResolvedEntry (..),
+    ShellConfig (..),
+ )
 import TuiSpec
 
+-- | Run the test suite.
 main :: IO ()
 main = defaultMain tests
 
+-- | Full test tree.
 tests :: TestTree
 tests =
     testGroup
@@ -28,6 +38,7 @@ tests =
         , tuiSpecSmoke
         ]
 
+-- | Unit-style coverage for config loading and launch behavior.
 pureTests :: TestTree
 pureTests =
     testGroup
@@ -35,6 +46,20 @@ pureTests =
         [ testCase "default config mentions starter entries" $ do
             let expectedNames = ["Shell", "nvim", "Tmux", "Codex", "Claude"]
             mapM_ (\name -> assertBool ("missing " <> T.unpack name) (name `T.isInfixOf` defaultConfigText)) expectedNames
+        , testCase "default config keeps extra starter entries commented out" $ do
+            let commentedEntries = ["# name = \"nvim\"", "# name = \"Tmux\"", "# name = \"Codex\"", "# name = \"Claude\""]
+            mapM_ (\entryLine -> assertBool ("missing commented entry " <> T.unpack entryLine) (entryLine `T.isInfixOf` defaultConfigText)) commentedEntries
+        , testCase "default config uses multiline command strings" $
+            assertBool "default config should use TOML multiline strings for commands" ("command = '''" `T.isInfixOf` defaultConfigText)
+        , testCase "default config enables only Shell" $ do
+            tempDir <- getTemporaryDirectory
+            let configDir = tempDir </> "tui-launcher-default-config"
+                configPath = configDir </> "config.toml"
+            createDirectoryIfMissing True configDir
+            TIO.writeFile configPath defaultConfigText
+            resolved <- loadResolvedConfig (Just configPath)
+            let entryNames = fmap resolvedName . NonEmpty.toList . configEntries . resolvedConfig $ resolved
+            entryNames @?= ["Shell"]
         , testCase "default config includes nvim working-dir" $
             assertBool "default config should set ~/Code for nvim" ("working-dir = \"~/Code\"" `T.isInfixOf` defaultConfigText)
         , testCase "empty shell program is rejected during config load" $ do
@@ -89,6 +114,7 @@ pureTests =
                 Right _ -> assertFailure "expected launch to fail for a missing working-dir"
         ]
 
+-- | End-to-end PTY smoke test for the built executable.
 tuiSpecSmoke :: TestTree
 tuiSpecSmoke =
     tuiTest
@@ -127,5 +153,7 @@ tuiSpecSmoke =
             , ""
             , "[[entries]]"
             , "name = \"Shell\""
-            , "command = \"printf 'READY\\n'; exec sh\""
+            , "command = '''"
+            , "printf 'READY\\n'; exec sh"
+            , "'''"
             ]

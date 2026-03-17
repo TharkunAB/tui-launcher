@@ -1,3 +1,4 @@
+-- | Brick user interface for browsing and selecting launcher entries.
 module TuiLauncher.UI (
     runUi,
 ) where
@@ -36,18 +37,28 @@ import Graphics.Vty.CrossPlatform (mkVty)
 import TuiLauncher.Themes
 import TuiLauncher.Types
 
+-- | Resource names used by Brick for clickable tiles.
 newtype Name = TileName Int deriving (Eq, Ord, Show)
 
+-- | Full UI state tracked during the Brick event loop.
 data UiState = UiState
     { uiConfig :: AppConfig
+    -- ^ Validated application config.
     , uiSelected :: Int
+    -- ^ Index of the currently focused entry.
     , uiScrollRow :: Int
+    -- ^ First visible row in the grid.
     , uiWidth :: Int
+    -- ^ Last known terminal width.
     , uiHeight :: Int
+    -- ^ Last known terminal height.
     , uiLaunch :: Maybe LaunchSpec
+    -- ^ Launch request chosen by the user, if any.
     , uiStatus :: Maybe Text
+    -- ^ Optional footer override message.
     }
 
+-- | Run the Brick UI and return the selected launch request, if any.
 runUi :: AppConfig -> IO (Maybe LaunchSpec)
 runUi config = do
     initialVty <- mkVty defaultConfig
@@ -69,6 +80,7 @@ runUi config = do
                 }
     pure (uiLaunch finalState)
 
+-- | Brick application definition.
 app :: App UiState e Name
 app =
     App
@@ -79,6 +91,7 @@ app =
         , appAttrMap = attrMapForTheme . configTheme . uiConfig
         }
 
+-- | Draw the complete screen.
 drawUi :: UiState -> [Widget Name]
 drawUi state =
     [ withAttr baseAttr $
@@ -87,12 +100,14 @@ drawUi state =
             <=> padTop (Pad 1) (footer state)
     ]
 
+-- | Render the application title.
 header :: UiState -> Widget Name
 header _state =
     withAttr accentAttr $
         hCenter $
             txt "tui-launcher"
 
+-- | Render the footer help text or status line.
 footer :: UiState -> Widget Name
 footer state =
     let info =
@@ -101,6 +116,7 @@ footer state =
                 (uiStatus state)
      in withAttr mutedAttr (txt info)
 
+-- | Render the grid body or the small-window fallback.
 drawBody :: UiState -> Widget Name
 drawBody state
     | tooSmall = center $ withAttr mutedAttr $ txt "Window too small"
@@ -116,6 +132,7 @@ drawBody state
     visibleRows = take (gridVisibleRows metrics) (drop (uiScrollRow state) rows)
     visibleRowsWidgets = zipWith (drawRow state) [uiScrollRow state ..] visibleRows
 
+-- | Render one visible row of tiles.
 drawRow :: UiState -> Int -> [(Int, ResolvedEntry)] -> Widget Name
 drawRow state _rowIndex entriesInRow =
     padBottom (Pad (layoutTileSpacing (configLayout (uiConfig state)))) $
@@ -129,6 +146,7 @@ drawRow state _rowIndex entriesInRow =
                 [0 ..]
                 (fmap (uncurry (drawTile state)) entriesInRow)
 
+-- | Render a single selectable tile.
 drawTile :: UiState -> Int -> ResolvedEntry -> Widget Name
 drawTile state index entry =
     clickable (TileName index) $
@@ -152,6 +170,7 @@ drawTile state index entry =
     topPad = max 0 ((innerHeight - 2) `div` 2)
     tileAttr = if index == uiSelected state then focusedAttr else borderAttr
 
+-- | Handle keyboard, mouse, and resize events.
 handleEvent :: BrickEvent Name e -> EventM Name UiState ()
 handleEvent event = do
     state <- get
@@ -188,9 +207,11 @@ handleEvent event = do
             put $ scrollRows (-1) state
         _ -> pure ()
 
+-- | Launch the currently selected entry.
 launchSelected :: UiState -> UiState
 launchSelected state = launchByIndex (uiSelected state) state
 
+-- | Convert an entry index into the corresponding launch request.
 launchByIndex :: Int -> UiState -> UiState
 launchByIndex index state =
     state
@@ -208,16 +229,19 @@ launchByIndex index state =
     boundedIndex = clamp 0 (length entries - 1) index
     entry = entries !! boundedIndex
 
+-- | Move the focused tile left or right.
 moveHorizontal :: Int -> UiState -> UiState
 moveHorizontal delta state =
     normalizeScroll state{uiSelected = clamp 0 (entryCount state - 1) (uiSelected state + delta)}
 
+-- | Move the focused tile up or down by one grid row.
 moveVertical :: Int -> UiState -> UiState
 moveVertical delta state =
     normalizeScroll state{uiSelected = clamp 0 (entryCount state - 1) (uiSelected state + delta * gridColumns metrics)}
   where
     metrics = gridMetrics (configLayout (uiConfig state)) (uiWidth state) (uiHeight state) (entryCount state)
 
+-- | Scroll the viewport by a number of rows.
 scrollRows :: Int -> UiState -> UiState
 scrollRows delta state =
     state{uiScrollRow = clamp 0 maxScroll (uiScrollRow state + delta)}
@@ -225,6 +249,7 @@ scrollRows delta state =
     metrics = gridMetrics (configLayout (uiConfig state)) (uiWidth state) (uiHeight state) (entryCount state)
     maxScroll = max 0 (gridTotalRows metrics - gridVisibleRows metrics)
 
+-- | Keep the selected tile visible after movement or resize events.
 normalizeScroll :: UiState -> UiState
 normalizeScroll state =
     state{uiScrollRow = clamp 0 maxScroll targetScroll}
@@ -238,6 +263,7 @@ normalizeScroll state =
             selectedRow - gridVisibleRows metrics + 1
         | otherwise = uiScrollRow state
 
+-- | Compute grid dimensions for the current terminal size and layout.
 gridMetrics :: LayoutConfig -> Int -> Int -> Int -> GridMetrics
 gridMetrics layout width height totalEntries =
     GridMetrics
@@ -253,15 +279,18 @@ gridMetrics layout width height totalEntries =
     visibleRows = max 1 ((bodyHeight + layoutTileSpacing layout) `div` max 1 outerHeight)
     totalRows = ceilingDiv totalEntries columns
 
+-- | Count the configured entries.
 entryCount :: UiState -> Int
 entryCount = length . NonEmpty.toList . configEntries . uiConfig
 
+-- | Divide and round up, returning a safe minimum of one.
 ceilingDiv :: Int -> Int -> Int
 ceilingDiv numerator denominator
     | denominator <= 0 = 1
     | numerator <= 0 = 1
     | otherwise = (numerator + denominator - 1) `div` denominator
 
+-- | Split a list into equally sized chunks.
 chunk :: Int -> [a] -> [[a]]
 chunk size xs
     | size <= 0 = [xs]
@@ -270,6 +299,7 @@ chunk size xs
         let (prefix, rest) = splitAt size xs
          in prefix : chunk size rest
 
+-- | Truncate text to fit a tile, appending an ellipsis when needed.
 truncateText :: Int -> Text -> Text
 truncateText width textValue
     | width <= 0 = ""
@@ -277,5 +307,6 @@ truncateText width textValue
     | width == 1 = "…"
     | otherwise = T.take (width - 1) textValue <> "…"
 
+-- | Clamp a value to an inclusive range.
 clamp :: Int -> Int -> Int -> Int
 clamp lower upper value = max lower (min upper value)

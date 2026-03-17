@@ -1,3 +1,4 @@
+-- | Config file loading, validation, and normalization.
 module TuiLauncher.Config (
     defaultConfigText,
     loadResolvedConfig,
@@ -20,6 +21,11 @@ import System.FilePath (isAbsolute, takeDirectory, (</>))
 import Toml qualified
 import TuiLauncher.Types
 
+{- | Starter config written on first launch when no default config exists.
+
+The generated file keeps only the shell entry enabled and leaves the other
+starter entries in place as commented examples.
+-}
 defaultConfigText :: T.Text
 defaultConfigText =
     T.unlines
@@ -37,29 +43,40 @@ defaultConfigText =
         , ""
         , "[[entries]]"
         , "name = \"Shell\""
-        , "command = \"exec \\\"${SHELL:-/bin/sh}\\\"\""
+        , "command = '''"
+        , "exec \"${SHELL:-/bin/sh}\""
+        , "'''"
         , ""
-        , "[[entries]]"
-        , "name = \"nvim\""
-        , "command = \"nvim\""
-        , "working-dir = \"~/Code\""
+        , "# [[entries]]"
+        , "# name = \"nvim\""
+        , "# command = '''"
+        , "# nvim"
+        , "# '''"
+        , "# working-dir = \"~/Code\""
         , ""
-        , "[[entries]]"
-        , "name = \"Tmux\""
-        , "command = \"tmux\""
+        , "# [[entries]]"
+        , "# name = \"Tmux\""
+        , "# command = '''"
+        , "# tmux"
+        , "# '''"
         , "# working-dir = \"~/Code/project\""
         , "# shell-program = \"/bin/zsh\""
         , "# shell-login = true"
         , ""
-        , "[[entries]]"
-        , "name = \"Codex\""
-        , "command = \"codex\""
+        , "# [[entries]]"
+        , "# name = \"Codex\""
+        , "# command = '''"
+        , "# codex"
+        , "# '''"
         , ""
-        , "[[entries]]"
-        , "name = \"Claude\""
-        , "command = \"claude\""
+        , "# [[entries]]"
+        , "# name = \"Claude\""
+        , "# command = '''"
+        , "# claude"
+        , "# '''"
         ]
 
+-- | Load, parse, validate, and normalize the active config file.
 loadResolvedConfig :: Maybe FilePath -> IO ResolvedConfig
 loadResolvedConfig overridePath = do
     home <- getHomeDirectory
@@ -75,6 +92,7 @@ loadResolvedConfig overridePath = do
             , resolvedConfig = validated
             }
 
+-- | Resolve which config file to use and create the default one if needed.
 resolveConfigPath :: FilePath -> Maybe FilePath -> IO (ConfigLocation, FilePath, Bool)
 resolveConfigPath home = \case
     Nothing -> do
@@ -93,12 +111,14 @@ resolveConfigPath home = \case
             fail ("Config file does not exist: " <> expanded)
         pure (OverrideConfig expanded, expanded, False)
 
+-- | Expand a leading @~@ against the supplied home directory.
 expandPath :: FilePath -> FilePath -> IO FilePath
 expandPath home path
     | "~/" `isPrefixOf` path = pure (home </> drop 2 path)
     | path == "~" = pure home
     | otherwise = pure path
 
+-- | Validate raw TOML data into the application config used by the UI.
 validateConfig :: FilePath -> ConfigLocation -> RawConfig -> IO AppConfig
 validateConfig home location RawConfig{..} = do
     layout <- validateLayout rawLayout
@@ -110,6 +130,7 @@ validateConfig home location RawConfig{..} = do
             , configEntries = entries
             }
 
+-- | Validate layout values and apply defaults for missing settings.
 validateLayout :: Maybe RawLayout -> IO LayoutConfig
 validateLayout maybeLayout = do
     let raw = fromMaybe (RawLayout Nothing Nothing Nothing) maybeLayout
@@ -126,6 +147,7 @@ validateLayout maybeLayout = do
             , layoutTileSpacing = spacing
             }
 
+-- | Validate and resolve all configured entries.
 validateEntries :: FilePath -> ConfigLocation -> Maybe RawShell -> [EntryConfig] -> IO (NonEmpty ResolvedEntry)
 validateEntries home location globalShell entries = do
     resolvedEntries <- traverse (resolveEntry home location globalShell) entries
@@ -133,6 +155,7 @@ validateEntries home location globalShell entries = do
         [] -> fail "At least one [[entries]] table is required"
         entry : rest -> pure (entry :| rest)
 
+-- | Resolve a single entry into the runtime format used by the launcher.
 resolveEntry :: FilePath -> ConfigLocation -> Maybe RawShell -> EntryConfig -> IO ResolvedEntry
 resolveEntry home location globalShell EntryConfig{..} = do
     let strippedName = T.strip entryName
@@ -154,6 +177,7 @@ resolveEntry home location globalShell EntryConfig{..} = do
                     }
             }
 
+-- | Resolve the shell program for an entry using the configured precedence.
 resolveShellProgram :: FilePath -> Maybe RawShell -> Maybe T.Text -> IO T.Text
 resolveShellProgram _home globalOverride entryOverride =
     case entryOverride <|> (globalOverride >>= rawShellProgram) of
@@ -165,9 +189,11 @@ resolveShellProgram _home globalOverride entryOverride =
                     Just shellPath | not (T.null shellPath) -> shellPath
                     _ -> "/bin/sh"
 
+-- | Read the current shell from the environment.
 lookupShell :: IO (Maybe FilePath)
 lookupShell = lookupEnv "SHELL"
 
+-- | Reject blank shell program values.
 validateShellProgram :: T.Text -> IO T.Text
 validateShellProgram rawProgram = do
     let stripped = T.strip rawProgram
@@ -175,6 +201,7 @@ validateShellProgram rawProgram = do
         fail "shell.program and entries.shell-program must not be empty"
     pure stripped
 
+-- | Resolve an entry working directory relative to the proper base path.
 resolveWorkingDir :: FilePath -> ConfigLocation -> T.Text -> IO FilePath
 resolveWorkingDir home location rawPath = do
     let strippedPath = T.strip rawPath
@@ -186,11 +213,13 @@ resolveWorkingDir home location rawPath = do
         then pure expanded
         else pure (baseDirectory location home </> expanded)
 
+-- | Determine the base directory for relative path resolution.
 baseDirectory :: ConfigLocation -> FilePath -> FilePath
 baseDirectory location home = case location of
     DefaultConfig _ -> home
     OverrideConfig path -> takeDirectory path
 
+-- | TOML codec for the top-level config structure.
 rawConfigCodec :: Toml.TomlCodec RawConfig
 rawConfigCodec =
     RawConfig
@@ -199,11 +228,13 @@ rawConfigCodec =
         <*> (Toml.dioptional (Toml.table rawShellCodec "shell") Toml..= rawShell)
         <*> (Toml.list entryCodec "entries" Toml..= rawEntries)
 
+-- | TOML codec for the theme table.
 rawThemeCodec :: Toml.TomlCodec RawTheme
 rawThemeCodec =
     RawTheme
         <$> (Toml.textBy renderThemeName parseThemeName "name" Toml..= rawThemeName)
 
+-- | TOML codec for the layout table.
 rawLayoutCodec :: Toml.TomlCodec RawLayout
 rawLayoutCodec =
     RawLayout
@@ -211,12 +242,14 @@ rawLayoutCodec =
         <*> (Toml.dioptional (Toml.int "tile-height") Toml..= rawTileHeight)
         <*> (Toml.dioptional (Toml.int "tile-spacing") Toml..= rawTileSpacing)
 
+-- | TOML codec for global shell defaults.
 rawShellCodec :: Toml.TomlCodec RawShell
 rawShellCodec =
     RawShell
         <$> (Toml.dioptional (Toml.text "program") Toml..= rawShellProgram)
         <*> (Toml.dioptional (Toml.bool "login") Toml..= rawShellLogin)
 
+-- | TOML codec for launcher entries.
 entryCodec :: Toml.TomlCodec EntryConfig
 entryCodec =
     EntryConfig
