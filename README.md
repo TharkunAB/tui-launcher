@@ -6,16 +6,23 @@ command.
 
 ## Screenshots
 
-The dark screenshot shows the grid layout, while the light screenshot keeps the
-narrow one-column layout.
+Both dark and light terminal styles are shown in square and vertical layouts.
 
-### Dark Terminal
+### Dark Square
 
-![Dark terminal screenshot](docs/screenshots/github-dark.png)
+![Dark square screenshot](docs/screenshots/github-dark-square.png)
 
-### Light Terminal
+### Dark Vertical
 
-![Light terminal screenshot](docs/screenshots/github-light.png)
+![Dark vertical screenshot](docs/screenshots/github-dark-vertical.png)
+
+### Light Square
+
+![Light square screenshot](docs/screenshots/github-light-square.png)
+
+### Light Vertical
+
+![Light vertical screenshot](docs/screenshots/github-light-vertical.png)
 
 ## Features
 

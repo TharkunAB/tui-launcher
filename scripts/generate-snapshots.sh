@@ -62,8 +62,8 @@ main = do
   [rootDir, launcherPath, fontPath] <- getArgs
   let screenshotsDir = rootDir </> "docs" </> "screenshots"
   createDirectoryIfMissing True screenshotsDir
-  forM_ snapshotSpecs $ \(snapshotName, snapshotThemeName) -> do
-    let runOptions = runOptionsFor snapshotName snapshotThemeName
+  forM_ snapshotSpecs $ \(snapshotName, snapshotThemeName, layoutName) -> do
+    let runOptions = runOptionsFor layoutName snapshotThemeName
     configPath <- writeSnapshotConfig
     withTuiSession runOptions ("snapshot-" <> snapshotName) $ \tui -> do
       launch tui (app launcherPath ["--config", configPath])
@@ -80,11 +80,11 @@ main = do
         ansiPath
         (screenshotsDir </> (snapshotName <> ".png"))
 
-runOptionsFor :: FilePath -> String -> RunOptions
-runOptionsFor snapshotName snapshotThemeName =
+runOptionsFor :: String -> String -> RunOptions
+runOptionsFor layoutName snapshotThemeName =
   let (cols, rows) =
-        case snapshotName of
-          "github-dark" -> (40, 18)
+        case layoutName of
+          "square" -> (40, 18)
           _ -> (22, 30)
    in defaultRunOptions
         { timeoutSeconds = 15
@@ -94,10 +94,12 @@ runOptionsFor snapshotName snapshotThemeName =
         , snapshotTheme = snapshotThemeName
         }
 
-snapshotSpecs :: [(FilePath, String)]
+snapshotSpecs :: [(FilePath, String, String)]
 snapshotSpecs =
-  [ ("github-light", "pty-default-light")
-  , ("github-dark", "pty-default-dark")
+  [ ("github-dark-square", "pty-default-dark", "square")
+  , ("github-dark-vertical", "pty-default-dark", "vertical")
+  , ("github-light-square", "pty-default-light", "square")
+  , ("github-light-vertical", "pty-default-light", "vertical")
   ]
 
 writeSnapshotConfig :: IO FilePath
