@@ -1,17 +1,20 @@
--- | Brick attribute definitions for the built-in themes.
+-- | Brick attribute definitions that defer colors to the active terminal theme.
 module TuiLauncher.Themes (
     accentAttr,
-    attrMapForTheme,
+    attrMapForTerminal,
     baseAttr,
     borderAttr,
+    entryCommandAttr,
+    exitAttr,
+    exitFocusedAttr,
     focusedAttr,
+    focusedTitleAttr,
     mutedAttr,
 ) where
 
 import Brick (AttrMap, AttrName, attrMap, attrName)
-import Brick.Util (on)
 import Graphics.Vty qualified as V
-import TuiLauncher.Types (ThemeName (..))
+import TuiLauncher.Types (AppConfig (..), EntryColor (..), ResolvedEntry (..))
 
 -- | Default text and background styling.
 baseAttr :: AttrName
@@ -21,11 +24,11 @@ baseAttr = attrName "base"
 borderAttr :: AttrName
 borderAttr = attrName "border"
 
--- | Secondary text styling for hints and commands.
+-- | Secondary text styling for commands.
 mutedAttr :: AttrName
 mutedAttr = attrName "muted"
 
--- | Accent styling for headings and highlights.
+-- | Accent styling for headings.
 accentAttr :: AttrName
 accentAttr = attrName "accent"
 
@@ -33,58 +36,87 @@ accentAttr = attrName "accent"
 focusedAttr :: AttrName
 focusedAttr = attrName "focused"
 
--- | Build the Brick attribute map for a configured theme.
-attrMapForTheme :: ThemeName -> AttrMap
-attrMapForTheme themeName =
+-- | Styling for the title inside the currently focused tile.
+focusedTitleAttr :: AttrName
+focusedTitleAttr = attrName "focused.title"
+
+-- | Styling for the exit button when it is not selected.
+exitAttr :: AttrName
+exitAttr = attrName "exit"
+
+-- | Styling for the exit button when it is selected.
+exitFocusedAttr :: AttrName
+exitFocusedAttr = attrName "exit.focused"
+
+-- | Attribute name for the colored command text inside an entry tile.
+entryCommandAttr :: Maybe EntryColor -> AttrName
+entryCommandAttr maybeColor =
+    attrName ("entry.command." <> maybe "default" renderEntryColor maybeColor)
+
+-- | Build the Brick attribute map using terminal-default colors.
+attrMapForTerminal :: AppConfig -> AttrMap
+attrMapForTerminal config =
     attrMap
-        (baseStyle themeName)
-        [ (baseAttr, baseStyle themeName)
-        , (borderAttr, borderStyle themeName)
-        , (mutedAttr, mutedStyle themeName)
-        , (accentAttr, accentStyle themeName)
-        , (focusedAttr, focusedStyle themeName)
-        ]
+        V.defAttr
+        ( [ (baseAttr, V.defAttr)
+          , (borderAttr, V.withForeColor V.defAttr V.brightBlack)
+          , (mutedAttr, V.withStyle V.defAttr V.dim)
+          , (accentAttr, V.withStyle V.defAttr V.bold)
+          , (focusedAttr, V.withStyle V.defAttr V.bold)
+          , (focusedTitleAttr, V.withStyle V.defAttr V.bold)
+          , (exitAttr, V.withForeColor V.defAttr V.brightBlack)
+          , (exitFocusedAttr, V.withStyle V.defAttr V.bold)
+          ]
+            <> concatMap entryColorAttrs (configEntries config)
+        )
 
--- | Base foreground and background colors for a theme.
-baseStyle :: ThemeName -> V.Attr
-baseStyle = \case
-    GitHubLight -> makeAttr V.black V.white
-    GitHubDark -> makeAttr V.white V.black
-    GitHubLightHighContrast -> makeAttr V.black V.brightWhite
-    GitHubDarkHighContrast -> makeAttr V.brightWhite V.black
+-- | Build text attrs for an entry's configured color.
+entryColorAttrs :: ResolvedEntry -> [(AttrName, V.Attr)]
+entryColorAttrs entry =
+    case resolvedColor entry of
+        Nothing -> [(entryCommandAttr Nothing, V.withStyle V.defAttr V.dim)]
+        Just colorValue ->
+            let color = entryColorToVty colorValue
+             in [(entryCommandAttr (Just colorValue), V.withForeColor V.defAttr color)]
 
--- | Border color for a theme.
-borderStyle :: ThemeName -> V.Attr
-borderStyle = \case
-    GitHubLight -> makeAttr V.brightBlack V.white
-    GitHubDark -> makeAttr V.brightBlack V.black
-    GitHubLightHighContrast -> makeAttr V.blue V.brightWhite
-    GitHubDarkHighContrast -> makeAttr V.brightCyan V.black
+-- | Render an entry color to a stable attribute suffix.
+renderEntryColor :: EntryColor -> String
+renderEntryColor = \case
+    EntryBlack -> "black"
+    EntryRed -> "red"
+    EntryOrange -> "orange"
+    EntryGreen -> "green"
+    EntryYellow -> "yellow"
+    EntryBlue -> "blue"
+    EntryMagenta -> "magenta"
+    EntryCyan -> "cyan"
+    EntryWhite -> "white"
+    EntryBrightBlack -> "bright-black"
+    EntryBrightRed -> "bright-red"
+    EntryBrightGreen -> "bright-green"
+    EntryBrightYellow -> "bright-yellow"
+    EntryBrightBlue -> "bright-blue"
+    EntryBrightMagenta -> "bright-magenta"
+    EntryBrightCyan -> "bright-cyan"
+    EntryBrightWhite -> "bright-white"
 
--- | Muted text color for a theme.
-mutedStyle :: ThemeName -> V.Attr
-mutedStyle = \case
-    GitHubLight -> makeAttr V.brightBlack V.white
-    GitHubDark -> makeAttr V.brightBlack V.black
-    GitHubLightHighContrast -> makeAttr V.blue V.brightWhite
-    GitHubDarkHighContrast -> makeAttr V.cyan V.black
-
--- | Accent color for headings and focus hints.
-accentStyle :: ThemeName -> V.Attr
-accentStyle = \case
-    GitHubLight -> makeAttr V.blue V.white
-    GitHubDark -> makeAttr V.brightBlue V.black
-    GitHubLightHighContrast -> makeAttr V.blue V.brightWhite
-    GitHubDarkHighContrast -> makeAttr V.brightCyan V.black
-
--- | Focused tile style for a theme.
-focusedStyle :: ThemeName -> V.Attr
-focusedStyle = \case
-    GitHubLight -> V.withStyle (V.white `on` V.blue) V.bold
-    GitHubDark -> V.withStyle (V.black `on` V.brightBlue) V.bold
-    GitHubLightHighContrast -> V.withStyle (V.white `on` V.blue) V.bold
-    GitHubDarkHighContrast -> V.withStyle (V.black `on` V.brightCyan) V.bold
-
--- | Construct a simple foreground/background attribute pair.
-makeAttr :: V.Color -> V.Color -> V.Attr
-makeAttr fore back = V.defAttr `V.withForeColor` fore `V.withBackColor` back
+-- | Map an entry color to the corresponding Vty color.
+entryColorToVty :: EntryColor -> V.Color
+entryColorToVty = \case
+    EntryBlack -> V.black
+    EntryRed -> V.red
+    EntryOrange -> V.rgbColor (255 :: Int) 165 0
+    EntryGreen -> V.green
+    EntryYellow -> V.yellow
+    EntryBlue -> V.blue
+    EntryMagenta -> V.magenta
+    EntryCyan -> V.cyan
+    EntryWhite -> V.white
+    EntryBrightBlack -> V.brightBlack
+    EntryBrightRed -> V.brightRed
+    EntryBrightGreen -> V.brightGreen
+    EntryBrightYellow -> V.brightYellow
+    EntryBrightBlue -> V.brightBlue
+    EntryBrightMagenta -> V.brightMagenta
+    EntryBrightCyan -> V.brightCyan
+    EntryBrightWhite -> V.brightWhite

@@ -3,6 +3,7 @@ module TuiLauncher.Types (
     AppConfig (..),
     AppOptions (..),
     ConfigLocation (..),
+    EntryColor (..),
     EntryConfig (..),
     GridMetrics (..),
     LayoutConfig (..),
@@ -10,14 +11,10 @@ module TuiLauncher.Types (
     RawConfig (..),
     RawLayout (..),
     RawShell (..),
-    RawTheme (..),
     ResolvedConfig (..),
     ResolvedEntry (..),
     ShellConfig (..),
-    ThemeName (..),
     defaultLayout,
-    parseThemeName,
-    renderThemeName,
 ) where
 
 import Data.List.NonEmpty (NonEmpty)
@@ -38,41 +35,26 @@ data ConfigLocation
       OverrideConfig FilePath
     deriving (Eq, Show)
 
--- | Supported built-in color themes.
-data ThemeName
-    = -- | GitHub Light inspired palette.
-      GitHubLight
-    | -- | GitHub Dark inspired palette.
-      GitHubDark
-    | -- | GitHub Light High Contrast inspired palette.
-      GitHubLightHighContrast
-    | -- | GitHub Dark High Contrast inspired palette.
-      GitHubDarkHighContrast
+-- | Supported ANSI text colors for entry labels and commands.
+data EntryColor
+    = EntryBlack
+    | EntryRed
+    | EntryOrange
+    | EntryGreen
+    | EntryYellow
+    | EntryBlue
+    | EntryMagenta
+    | EntryCyan
+    | EntryWhite
+    | EntryBrightBlack
+    | EntryBrightRed
+    | EntryBrightGreen
+    | EntryBrightYellow
+    | EntryBrightBlue
+    | EntryBrightMagenta
+    | EntryBrightCyan
+    | EntryBrightWhite
     deriving (Bounded, Enum, Eq, Ord, Show)
-
--- | Render a theme value to the TOML representation.
-renderThemeName :: ThemeName -> Text
-renderThemeName = \case
-    GitHubLight -> "github-light"
-    GitHubDark -> "github-dark"
-    GitHubLightHighContrast -> "github-light-high-contrast"
-    GitHubDarkHighContrast -> "github-dark-high-contrast"
-
--- | Parse a theme name from TOML text.
-parseThemeName :: Text -> Either Text ThemeName
-parseThemeName = \case
-    "github-light" -> Right GitHubLight
-    "github-dark" -> Right GitHubDark
-    "github-light-high-contrast" -> Right GitHubLightHighContrast
-    "github-dark-high-contrast" -> Right GitHubDarkHighContrast
-    other -> Left $ "Unknown theme: " <> other
-
--- | Raw theme table parsed directly from TOML.
-newtype RawTheme = RawTheme
-    { rawThemeName :: ThemeName
-    -- ^ Selected theme.
-    }
-    deriving (Eq, Show)
 
 -- | Raw layout settings parsed directly from TOML.
 data RawLayout = RawLayout
@@ -100,6 +82,8 @@ data EntryConfig = EntryConfig
     -- ^ Label shown in the UI.
     , entryCommand :: Text
     -- ^ Command passed to the selected shell.
+    , entryColor :: Maybe Text
+    -- ^ Optional text color for this entry.
     , entryWorkingDir :: Maybe Text
     -- ^ Optional working directory before launch.
     , entryShellProgram :: Maybe Text
@@ -111,9 +95,7 @@ data EntryConfig = EntryConfig
 
 -- | Top-level TOML structure before validation and normalization.
 data RawConfig = RawConfig
-    { rawTheme :: Maybe RawTheme
-    -- ^ Optional theme table.
-    , rawLayout :: Maybe RawLayout
+    { rawLayout :: Maybe RawLayout
     -- ^ Optional layout table.
     , rawShell :: Maybe RawShell
     -- ^ Optional global shell defaults.
@@ -157,6 +139,10 @@ data ResolvedEntry = ResolvedEntry
     -- ^ Label rendered in the tile.
     , resolvedCommand :: Text
     -- ^ Command string passed to the shell.
+    , resolvedColor :: Maybe EntryColor
+    -- ^ Optional terminal color used for the tile text.
+    , resolvedWorkingDirDisplay :: Maybe Text
+    -- ^ Optional working directory label rendered in the tile.
     , resolvedWorkingDir :: Maybe FilePath
     -- ^ Optional working directory applied before launch.
     , resolvedShell :: ShellConfig
@@ -166,9 +152,7 @@ data ResolvedEntry = ResolvedEntry
 
 -- | Validated application configuration consumed by the UI.
 data AppConfig = AppConfig
-    { configTheme :: ThemeName
-    -- ^ Active built-in theme.
-    , configLayout :: LayoutConfig
+    { configLayout :: LayoutConfig
     -- ^ Layout parameters for the tile grid.
     , configEntries :: NonEmpty ResolvedEntry
     -- ^ Entries shown in the launcher.

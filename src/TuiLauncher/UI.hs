@@ -21,14 +21,15 @@ import Brick (
     vBox,
     vLimit,
     withAttr,
+    withBorderStyle,
     (<=>),
  )
 import Brick.Main qualified as Brick
 import Brick.Types (get, put)
 import Brick.Widgets.Border (border)
+import Brick.Widgets.Border.Style (unicode, unicodeBold)
 import Brick.Widgets.Center (center, hCenter)
 import Data.List.NonEmpty qualified as NonEmpty
-import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Graphics.Vty qualified as V
@@ -38,7 +39,22 @@ import TuiLauncher.Themes
 import TuiLauncher.Types
 
 -- | Resource names used by Brick for clickable tiles.
-newtype Name = TileName Int deriving (Eq, Ord, Show)
+data Name
+    = TileName Int
+    | ExitName
+    deriving (Eq, Ord, Show)
+
+-- | Fixed width of the exit button.
+exitButtonWidth :: Int
+exitButtonWidth = 20
+
+-- | Fixed height of the exit button.
+exitButtonHeight :: Int
+exitButtonHeight = 3
+
+-- | Spacing between the tile grid and the exit button.
+exitButtonSpacing :: Int
+exitButtonSpacing = 1
 
 -- | Full UI state tracked during the Brick event loop.
 data UiState = UiState
@@ -54,8 +70,6 @@ data UiState = UiState
     -- ^ Last known terminal height.
     , uiLaunch :: Maybe LaunchSpec
     -- ^ Launch request chosen by the user, if any.
-    , uiStatus :: Maybe Text
-    -- ^ Optional footer override message.
     }
 
 -- | Run the Brick UI and return the selected launch request, if any.
@@ -76,7 +90,6 @@ runUi config = do
                 , uiWidth = w
                 , uiHeight = h
                 , uiLaunch = Nothing
-                , uiStatus = Nothing
                 }
     pure (uiLaunch finalState)
 
@@ -88,7 +101,7 @@ app =
         , appChooseCursor = Brick.neverShowCursor
         , appHandleEvent = handleEvent
         , appStartEvent = pure ()
-        , appAttrMap = attrMapForTheme . configTheme . uiConfig
+        , appAttrMap = attrMapForTerminal . uiConfig
         }
 
 -- | Draw the complete screen.
@@ -97,7 +110,7 @@ drawUi state =
     [ withAttr baseAttr $
         header state
             <=> padTop (Pad 1) (drawBody state)
-            <=> padTop (Pad 1) (footer state)
+    , withAttr baseAttr (fill ' ')
     ]
 
 -- | Render the application title.
@@ -107,26 +120,24 @@ header _state =
         hCenter $
             txt "tui-launcher"
 
--- | Render the footer help text or status line.
-footer :: UiState -> Widget Name
-footer state =
-    let info =
-            fromMaybe
-                "Arrows/hjkl move, Enter launches, click launches, q/Esc quits"
-                (uiStatus state)
-     in withAttr mutedAttr (txt info)
-
 -- | Render the grid body or the small-window fallback.
 drawBody :: UiState -> Widget Name
 drawBody state
     | tooSmall = center $ withAttr mutedAttr $ txt "Window too small"
-    | otherwise = vBox visibleRowsWidgets
+    | otherwise =
+        vBox
+            [ vBox (fmap hCenter visibleRowsWidgets)
+            , fill ' '
+            , padTop (Pad exitButtonSpacing) $
+                hCenter $
+                    drawExitButton state
+            ]
   where
     layout = configLayout (uiConfig state)
     metrics = gridMetrics layout (uiWidth state) (uiHeight state) (entryCount state)
     tooSmall =
-        layoutTileWidth layout + 2 > uiWidth state
-            || layoutTileHeight layout + 3 > uiHeight state
+        max (layoutTileWidth layout) exitButtonWidth > uiWidth state
+            || minimumHeight layout > uiHeight state
     entries = zip [0 ..] (NonEmpty.toList (configEntries (uiConfig state)))
     rows = chunk (gridColumns metrics) entries
     visibleRows = take (gridVisibleRows metrics) (drop (uiScrollRow state) rows)
@@ -152,23 +163,77 @@ drawTile state index entry =
     clickable (TileName index) $
         hLimit (layoutTileWidth layout) $
             vLimit (layoutTileHeight layout) $
-                withAttr tileAttr $
-                    border $
-                        vBox
-                            [ vLimit topPad (fill ' ')
-                            , center $ txt (resolvedName entry)
-                            , center $
-                                withAttr mutedAttr $
-                                    txt $
-                                        truncateText innerWidth (resolvedCommand entry)
-                            , fill ' '
-                            ]
+                withBorderStyle borderStyle $
+                    withAttr borderStyleAttr $
+                        border $
+                            withAttr bodyStyleAttr $
+                                vBox
+                                    [ vLimit topPad (fill ' ')
+                                    , center $
+                                        withAttr titleStyleAttr $
+                                            txt titleText
+                                    , center $
+                                        withAttr commandStyleAttr $
+                                            txt $
+                                                truncateText innerWidth (resolvedCommand entry)
+                                    , drawWorkingDirLine
+                                    , fill ' '
+                                    ]
   where
     layout = configLayout (uiConfig state)
+    isSelected = index == uiSelected state
     innerWidth = max 1 (layoutTileWidth layout - 2)
     innerHeight = max 1 (layoutTileHeight layout - 2)
-    topPad = max 0 ((innerHeight - 2) `div` 2)
-    tileAttr = if index == uiSelected state then focusedAttr else borderAttr
+    lineCount = 2 + maybe 0 (const 1) (resolvedWorkingDirDisplay entry)
+    topPad = max 0 ((innerHeight - lineCount) `div` 2)
+    borderStyle = if isSelected then unicodeBold else unicode
+    borderStyleAttr = if isSelected then focusedAttr else borderAttr
+    bodyStyleAttr = baseAttr
+    titleStyleAttr =
+        if isSelected
+            then focusedTitleAttr
+            else mutedAttr
+    commandStyleAttr = entryCommandAttr (resolvedColor entry)
+    titleText =
+        if isSelected
+            then "> " <> resolvedName entry
+            else resolvedName entry
+    drawWorkingDirLine =
+        case resolvedWorkingDirDisplay entry of
+            Nothing -> fill ' '
+            Just workingDirText ->
+                center $
+                    withAttr mutedAttr $
+                        txt (truncateText innerWidth workingDirText)
+
+-- | Render the fixed exit button shown below the launcher entries.
+drawExitButton :: UiState -> Widget Name
+drawExitButton state =
+    clickable ExitName $
+        hLimit exitButtonWidth $
+            vLimit exitButtonHeight $
+                withBorderStyle borderStyle $
+                    withAttr borderStyleAttr $
+                        border $
+                            withAttr baseAttr $
+                                center $
+                                    withAttr textStyleAttr $
+                                        txt labelText
+  where
+    isSelected = uiSelected state == exitSelectionIndex state
+    borderStyle = if isSelected then unicodeBold else unicode
+    borderStyleAttr =
+        if isSelected
+            then exitFocusedAttr
+            else exitAttr
+    textStyleAttr =
+        if isSelected
+            then focusedTitleAttr
+            else mutedAttr
+    labelText =
+        if isSelected
+            then "> Exit"
+            else "Exit"
 
 -- | Handle keyboard, mouse, and resize events.
 handleEvent :: BrickEvent Name e -> EventM Name UiState ()
@@ -201,6 +266,8 @@ handleEvent event = do
             put $ moveVertical 1 state
         MouseDown (TileName index) V.BLeft [] _ ->
             put (launchByIndex index state) >> Brick.halt
+        MouseDown ExitName V.BLeft [] _ ->
+            Brick.halt
         MouseDown _ V.BScrollDown [] _ ->
             put $ scrollRows 1 state
         MouseDown _ V.BScrollUp [] _ ->
@@ -209,7 +276,9 @@ handleEvent event = do
 
 -- | Launch the currently selected entry.
 launchSelected :: UiState -> UiState
-launchSelected state = launchByIndex (uiSelected state) state
+launchSelected state
+    | uiSelected state == exitSelectionIndex state = state
+    | otherwise = launchByIndex (uiSelected state) state
 
 -- | Convert an entry index into the corresponding launch request.
 launchByIndex :: Int -> UiState -> UiState
@@ -232,14 +301,41 @@ launchByIndex index state =
 -- | Move the focused tile left or right.
 moveHorizontal :: Int -> UiState -> UiState
 moveHorizontal delta state =
-    normalizeScroll state{uiSelected = clamp 0 (entryCount state - 1) (uiSelected state + delta)}
+    normalizeScroll $
+        case uiSelected state of
+            selectedIndex
+                | selectedIndex == exitSelectionIndex state -> state
+                | otherwise ->
+                    state
+                        { uiSelected =
+                            clamp 0 (entryCount state - 1) (selectedIndex + delta)
+                        }
 
 -- | Move the focused tile up or down by one grid row.
 moveVertical :: Int -> UiState -> UiState
-moveVertical delta state =
-    normalizeScroll state{uiSelected = clamp 0 (entryCount state - 1) (uiSelected state + delta * gridColumns metrics)}
+moveVertical delta state
+    | delta == 0 = state
+    | uiSelected state == exitSelectionIndex state && delta < 0 =
+        normalizeScroll state{uiSelected = max 0 (entryCount state - 1)}
+    | uiSelected state == exitSelectionIndex state =
+        state
+    | delta > 0 =
+        normalizeScroll $
+            state
+                { uiSelected =
+                    if candidate < entryCount state
+                        then candidate
+                        else exitSelectionIndex state
+                }
+    | otherwise =
+        normalizeScroll $
+            state
+                { uiSelected =
+                    clamp 0 (entryCount state - 1) candidate
+                }
   where
     metrics = gridMetrics (configLayout (uiConfig state)) (uiWidth state) (uiHeight state) (entryCount state)
+    candidate = uiSelected state + delta * gridColumns metrics
 
 -- | Scroll the viewport by a number of rows.
 scrollRows :: Int -> UiState -> UiState
@@ -256,7 +352,8 @@ normalizeScroll state =
   where
     metrics = gridMetrics (configLayout (uiConfig state)) (uiWidth state) (uiHeight state) (entryCount state)
     maxScroll = max 0 (gridTotalRows metrics - gridVisibleRows metrics)
-    selectedRow = uiSelected state `div` gridColumns metrics
+    selectedIndex = min (uiSelected state) (max 0 (entryCount state - 1))
+    selectedRow = selectedIndex `div` gridColumns metrics
     targetScroll
         | selectedRow < uiScrollRow state = selectedRow
         | selectedRow >= uiScrollRow state + gridVisibleRows metrics =
@@ -274,14 +371,24 @@ gridMetrics layout width height totalEntries =
   where
     outerWidth = layoutTileWidth layout + layoutTileSpacing layout
     outerHeight = layoutTileHeight layout + layoutTileSpacing layout
-    bodyHeight = max 1 (height - 4)
+    bodyHeight = max 1 (height - 2 - exitSectionHeight)
     columns = max 1 ((width + layoutTileSpacing layout) `div` max 1 outerWidth)
     visibleRows = max 1 ((bodyHeight + layoutTileSpacing layout) `div` max 1 outerHeight)
     totalRows = ceilingDiv totalEntries columns
+    exitSectionHeight = exitButtonHeight + exitButtonSpacing
 
 -- | Count the configured entries.
 entryCount :: UiState -> Int
 entryCount = length . NonEmpty.toList . configEntries . uiConfig
+
+-- | Sentinel selection index used for the exit button.
+exitSelectionIndex :: UiState -> Int
+exitSelectionIndex = entryCount
+
+-- | Minimum terminal height required to show one tile row and the exit button.
+minimumHeight :: LayoutConfig -> Int
+minimumHeight layout =
+    2 + layoutTileHeight layout + exitButtonSpacing + exitButtonHeight
 
 -- | Divide and round up, returning a safe minimum of one.
 ceilingDiv :: Int -> Int -> Int

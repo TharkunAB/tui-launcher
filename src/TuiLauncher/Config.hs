@@ -31,9 +31,6 @@ starter entries in place as commented examples.
 defaultConfigText :: T.Text
 defaultConfigText =
     """
-    [theme]
-    name = "github-dark"
-
     [layout]
     tile-width = 20
     tile-height = 20
@@ -46,15 +43,18 @@ defaultConfigText =
     [[entries]]
     name = "Shell"
     command = "exec \\\"${SHELL:-/bin/sh}\\\""
+    # color = "bright-blue"
 
     # [[entries]]
     # name = "nvim"
     # command = "nvim"
+    # color = "blue"
     # working-dir = "~/Code"
 
     # [[entries]]
     # name = "Tmux"
     # command = "tmux"
+    # color = "cyan"
     # working-dir = "~/Code/project"
     # shell-program = "/bin/zsh"
     # shell-login = true
@@ -62,10 +62,12 @@ defaultConfigText =
     # [[entries]]
     # name = "Codex"
     # command = "codex"
+    # color = "bright-magenta"
 
     # [[entries]]
     # name = "Claude"
     # command = "claude"
+    # color = "orange"
     """
 
 -- | Load, parse, validate, and normalize the active config file.
@@ -117,8 +119,7 @@ validateConfig home location RawConfig{..} = do
     entries <- validateEntries home location rawShell rawEntries
     pure
         AppConfig
-            { configTheme = maybe GitHubDark rawThemeName rawTheme
-            , configLayout = layout
+            { configLayout = layout
             , configEntries = entries
             }
 
@@ -154,6 +155,7 @@ resolveEntry home location globalShell EntryConfig{..} = do
         strippedCommand = T.strip entryCommand
     when (T.null strippedName) $ fail "entries.name must not be empty"
     when (T.null strippedCommand) $ fail "entries.command must not be empty"
+    color <- traverse resolveEntryColor entryColor
     workingDir <- traverse (resolveWorkingDir home location) entryWorkingDir
     shellProgramText <- resolveShellProgram home globalShell entryShellProgram
     let login = fromMaybe (maybe False (fromMaybe False . rawShellLogin) globalShell) entryShellLogin
@@ -161,6 +163,8 @@ resolveEntry home location globalShell EntryConfig{..} = do
         ResolvedEntry
             { resolvedName = strippedName
             , resolvedCommand = strippedCommand
+            , resolvedColor = color
+            , resolvedWorkingDirDisplay = fmap (displayWorkingDir home) workingDir
             , resolvedWorkingDir = workingDir
             , resolvedShell =
                 ShellConfig
@@ -211,20 +215,54 @@ baseDirectory location home = case location of
     DefaultConfig _ -> home
     OverrideConfig path -> takeDirectory path
 
+-- | Render a resolved working directory with @~@ for the user's home.
+displayWorkingDir :: FilePath -> FilePath -> T.Text
+displayWorkingDir home path
+    | path == home = "~"
+    | (home <> "/") `isPrefixOf` path =
+        T.pack ("~/" <> drop (length home + 1) path)
+    | otherwise = T.pack path
+
+-- | Validate and normalize an optional entry color.
+resolveEntryColor :: T.Text -> IO EntryColor
+resolveEntryColor rawColor = do
+    let normalized = T.toLower (T.strip rawColor)
+    when (T.null normalized) $
+        fail "entries.color must not be empty"
+    case normalized of
+        "black" -> pure EntryBlack
+        "red" -> pure EntryRed
+        "orange" -> pure EntryOrange
+        "green" -> pure EntryGreen
+        "yellow" -> pure EntryYellow
+        "blue" -> pure EntryBlue
+        "magenta" -> pure EntryMagenta
+        "cyan" -> pure EntryCyan
+        "white" -> pure EntryWhite
+        "bright-black" -> pure EntryBrightBlack
+        "bright-red" -> pure EntryBrightRed
+        "bright-green" -> pure EntryBrightGreen
+        "bright-yellow" -> pure EntryBrightYellow
+        "bright-blue" -> pure EntryBrightBlue
+        "bright-magenta" -> pure EntryBrightMagenta
+        "bright-cyan" -> pure EntryBrightCyan
+        "bright-white" -> pure EntryBrightWhite
+        "gray" -> pure EntryBrightBlack
+        "grey" -> pure EntryBrightBlack
+        other ->
+            fail
+                ( "Unsupported entries.color: "
+                    <> T.unpack other
+                    <> ". Use an ANSI color name like red, bright-blue, or cyan."
+                )
+
 -- | TOML codec for the top-level config structure.
 rawConfigCodec :: Toml.TomlCodec RawConfig
 rawConfigCodec =
     RawConfig
-        <$> (Toml.dioptional (Toml.table rawThemeCodec "theme") Toml..= rawTheme)
-        <*> (Toml.dioptional (Toml.table rawLayoutCodec "layout") Toml..= rawLayout)
+        <$> (Toml.dioptional (Toml.table rawLayoutCodec "layout") Toml..= rawLayout)
         <*> (Toml.dioptional (Toml.table rawShellCodec "shell") Toml..= rawShell)
         <*> (Toml.list entryCodec "entries" Toml..= rawEntries)
-
--- | TOML codec for the theme table.
-rawThemeCodec :: Toml.TomlCodec RawTheme
-rawThemeCodec =
-    RawTheme
-        <$> (Toml.textBy renderThemeName parseThemeName "name" Toml..= rawThemeName)
 
 -- | TOML codec for the layout table.
 rawLayoutCodec :: Toml.TomlCodec RawLayout
@@ -247,6 +285,7 @@ entryCodec =
     EntryConfig
         <$> (Toml.text "name" Toml..= entryName)
         <*> (Toml.text "command" Toml..= entryCommand)
+        <*> (Toml.dioptional (Toml.text "color") Toml..= entryColor)
         <*> (Toml.dioptional (Toml.text "working-dir") Toml..= entryWorkingDir)
         <*> (Toml.dioptional (Toml.text "shell-program") Toml..= entryShellProgram)
         <*> (Toml.dioptional (Toml.bool "shell-login") Toml..= entryShellLogin)
