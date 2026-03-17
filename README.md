@@ -8,20 +8,16 @@ command.
 
 Both dark and light terminal styles are shown in square and vertical layouts.
 
-### Dark Square
-
+Dark square:
 ![Dark square screenshot](docs/screenshots/github-dark-square.png)
 
-### Dark Vertical
-
+Dark vertical:
 ![Dark vertical screenshot](docs/screenshots/github-dark-vertical.png)
 
-### Light Square
-
+Light square:
 ![Light square screenshot](docs/screenshots/github-light-square.png)
 
-### Light Vertical
-
+Light vertical:
 ![Light vertical screenshot](docs/screenshots/github-light-vertical.png)
 
 ## Features
