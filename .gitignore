@@ -1,6 +1,7 @@
 dist-newstyle/
 artifacts/
 .cabal/
+.cache/
 *.hi
 *.o
 *.dyn_hi
