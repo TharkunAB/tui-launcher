@@ -1,0 +1,86 @@
+cabal-version: 3.8
+name: tuilauncher
+version: 0.1.0.0
+build-type: Simple
+license: MIT
+license-file: LICENSE
+author: tritlo
+maintainer: tritlo
+synopsis: Small Brick-based terminal launcher
+category: Console
+extra-doc-files: README.md
+
+common warnings
+  ghc-options: -Wall
+  default-language: GHC2021
+  default-extensions:
+    BlockArguments
+    LambdaCase
+    OverloadedStrings
+    RecordWildCards
+    TypeApplications
+
+executable tuilauncher
+  import: warnings
+  ghc-options: -threaded
+  main-is: Main.hs
+  hs-source-dirs:
+    app
+    src
+
+  other-modules:
+    TUILauncher.App
+    TUILauncher.Config
+    TUILauncher.Themes
+    TUILauncher.Types
+    TUILauncher.UI
+
+  build-depends:
+    base,
+    brick,
+    containers,
+    directory,
+    filepath,
+    optparse-applicative,
+    process,
+    text,
+    tomland,
+    unix,
+    vty,
+    vty-crossplatform,
+
+test-suite tuilauncher-test
+  import: warnings
+  ghc-options: -threaded
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs:
+    test
+    src
+
+  build-tool-depends:
+    tuilauncher:tuilauncher
+
+  other-modules:
+    TUILauncher.App
+    TUILauncher.Config
+    TUILauncher.Themes
+    TUILauncher.Types
+    TUILauncher.UI
+
+  build-depends:
+    base,
+    brick,
+    containers,
+    directory,
+    filepath,
+    optparse-applicative,
+    process,
+    tasty,
+    tasty-hunit,
+    text,
+    tomland,
+    tuispec,
+    unix,
+    vty,
+    vty-crossplatform,
