@@ -1,5 +1,7 @@
 # tui-launcher
 
+[![Hackage](https://img.shields.io/hackage/v/tui-launcher.svg)](https://hackage.haskell.org/package/tui-launcher)
+
 Small Brick-based terminal launcher for shell commands. It reads a TOML config,
 shows a keyboard-driven tile menu, and replaces itself with the selected
 command.
@@ -16,20 +18,15 @@ Both dark and light terminal styles are shown in square and vertical layouts.
 
 ![Light vertical screenshot](docs/screenshots/github-light-vertical.png)
 
-## Features
-
-- Arrow keys and `hjkl` move the selection
-- `Enter` launches the selected entry
-- Mouse click launches an entry and mouse wheel scrolls
-- Dedicated `Exit` button at the bottom of the launcher
-- Optional per-entry `color` for tile text
-- Per-entry `working-dir`, `shell-program`, and `shell-login`
-- Auto-created default config at `~/.config/tui-launcher/config.toml`
-- Uses your terminal's default colors
-
 ## Installation
 
-Download the latest release binary from GitHub Releases and put it on your
+Install from Hackage:
+
+```sh
+cabal install tui-launcher
+```
+
+Or download the latest release binary from GitHub Releases and put it on your
 `PATH`:
 
 ```sh
@@ -47,6 +44,17 @@ tui-launcher
 
 On first launch, `tui-launcher` creates `~/.config/tui-launcher/config.toml` if
 it does not already exist.
+
+## Features
+
+- Arrow keys and `hjkl` move the selection
+- `Enter` launches the selected entry
+- Mouse click launches an entry and mouse wheel scrolls
+- Dedicated `Exit` button at the bottom of the launcher
+- Optional per-entry `color` for tile text
+- Per-entry `working-dir`, `shell-program`, and `shell-login`
+- Auto-created default config at `~/.config/tui-launcher/config.toml`
+- Uses your terminal's default colors
 
 ## Configuration
 
