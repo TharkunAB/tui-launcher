@@ -120,7 +120,7 @@ defaultLayout :: LayoutConfig
 defaultLayout =
     LayoutConfig
         { layoutTileWidth = 20
-        , layoutTileHeight = 20
+        , layoutTileHeight = 5
         , layoutTileSpacing = 1
         }
 

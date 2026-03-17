@@ -33,7 +33,7 @@ defaultConfigText =
     """
     [layout]
     tile-width = 20
-    tile-height = 20
+    tile-height = 5
     tile-spacing = 1
 
     # [shell]

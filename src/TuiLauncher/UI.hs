@@ -75,12 +75,12 @@ data UiState = UiState
 -- | Run the Brick UI and return the selected launch request, if any.
 runUi :: AppConfig -> IO (Maybe LaunchSpec)
 runUi config = do
-    initialVty <- mkVty defaultConfig
+    initialVty <- buildVty
     (w, h) <- V.displayBounds (V.outputIface initialVty)
     finalState <-
         customMain
             initialVty
-            (mkVty defaultConfig)
+            buildVty
             Nothing
             app
             UiState
@@ -92,6 +92,13 @@ runUi config = do
                 , uiLaunch = Nothing
                 }
     pure (uiLaunch finalState)
+
+-- | Build a Vty instance with mouse reporting enabled.
+buildVty :: IO V.Vty
+buildVty = do
+    vty <- mkVty defaultConfig
+    V.setMode (V.outputIface vty) V.Mouse True
+    pure vty
 
 -- | Brick application definition.
 app :: App UiState e Name

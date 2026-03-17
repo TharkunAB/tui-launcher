@@ -1,6 +1,6 @@
 cabal-version: 3.8
 name: tui-launcher
-version: 0.1.0.0
+version: 0.0.1
 build-type: Simple
 license: MIT
 license-file: LICENSE
@@ -8,7 +8,9 @@ author: tritlo
 maintainer: tritlo
 synopsis: Small Brick-based terminal launcher
 category: Console
-extra-doc-files: README.md
+extra-doc-files:
+  CHANGELOG.md
+  README.md
 
 common warnings
   ghc-options: -Wall

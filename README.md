@@ -68,7 +68,7 @@ Example config:
 ```toml
 [layout]
 tile-width = 20
-tile-height = 20
+tile-height = 5
 tile-spacing = 1
 
 # [shell]
@@ -108,7 +108,7 @@ shell-login = true
 Layout settings:
 
 - `tile-width`: positive integer, default `20`
-- `tile-height`: positive integer, default `20`
+- `tile-height`: positive integer, default `5`
 - `tile-spacing`: non-negative integer, default `1`
 
 Shell resolution order:
