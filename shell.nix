@@ -7,10 +7,12 @@ pkgs.mkShell {
   packages = [
     pkgs.haskell.compiler.ghc9122
     pkgs.cabal-install
+    pkgs.curl
     pkgs.gnumake
     pkgs.haskellPackages.fourmolu
     pkgs.haskellPackages.cabal-gild
     pkgs.haskellPackages.hlint
     python
+    pkgs.unzip
   ];
 }
